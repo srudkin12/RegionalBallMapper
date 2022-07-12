@@ -1,0 +1,150 @@
+#########################################
+# This file provides code for Session 4	#
+#########################################
+
+# If you are using R for the first time you will need to install the packages with the following lines. Note that we will also be using the "car" package in this session.
+
+install.packages("dplyr")
+install.packages("BallMapper")
+install.packages("car")
+
+# Note that R will ask you to select a server, you can select any but the "Cloud" server works well. Secondly you may get a prompt about compiling packages, indicate "Yes" if that happens
+
+# First read in the packages
+
+library(dplyr)
+library(BallMapper)
+library(car)
+
+# Set working directory
+
+setwd("D://oraf/") # This needs changing to your path either through code or via the File -> Change Dir... menu
+
+# Read in larger dataset
+
+dtx<-read.table("region1.csv",sep=",",header=TRUE)
+
+# Select a subset of variables for the analysis
+
+dty<-cbind(dtx[,1:2],dtx$QualLevel4,dtx$Deprivation0,dtx$Accommodation,dtx$Married,dtx$HealthVeryGood,dtx$OwnedMortgage)
+
+# Name the variables for reference
+
+names(dty)<-c("geog","geogcode","QualLevel4","Deprivation0","Accommodation","Married","HealthVeryGood","OwnedMortgage")
+
+dty$QL4<-as.numeric(dty$QualLevel4>33) # Areas where more than 1/3rd have Degrees
+
+# Because we will be doing regressions, we should verify that there are unlikely to be any issues with collinearity
+# The check for collinearity here is made by checking first that there are no correlations above 0.7
+# The second element of the check is to use the variance inflation factor (VIF) and check that no variables have a VIF above 10
+
+cor(dty[,3:9]) # Produces the correlation matrix - This has already been done in Session 3
+
+# Fit a first OLS model for the calculation of the VIF
+
+lm1<-lm(QualLevel4~Deprivation0+Accommodation+Married+HealthVeryGood+OwnedMortgage,data=dty)
+
+# View the VIF
+
+VIF(lm1)
+
+# Given that there are no issues with the VIF let us now see the model
+
+sm1<-summary(lm1)
+sm1
+
+# For those looking to save this summary for use in a paper there are many options. One is to use the line
+
+write.table(sm1$coef,"Model1Coefficients.csv",sep=",",row.names=FALSE)
+
+# However you are encouraged to research some of the many better options offered in R
+
+dty$fit1<-fitted(lm1)
+
+# We will the construct the residuals as the true value minus the fitted value
+
+dty$res1<-dty$QualLevel4-dty$fit1
+
+# In order to use these in the BallMapper we need to have them as data frames. The next block of code builds from Session 3, adding two more lines for the fitted values and the residuals
+
+y1<-as.data.frame(dty$QualLevel4)
+y2<-as.data.frame(dty$QL4)
+y3<-as.data.frame(dty$fit1)
+y4<-as.data.frame(dty$res1)
+
+# Split out the axis variables 
+
+x1<-as.data.frame(dty[,4:8])
+
+# Recall that we are going to normalise these variables because of the different ranges of values  
+# We use a function from the BallMapper package (American spelling)
+
+x2<-normalize_to_min_0_max_1(x1)
+
+# Produce BallMapper plots for the true value (t), fitted value (f) and residual (r)
+
+bm130t<-BallMapper(x2,y1,0.3)
+bm130f<-BallMapper(x2,y3,0.3) 
+bm130r<-BallMapper(x2,y4,0.3)  
+
+# We may plot each of these and toggle between the output by running each line individually again
+
+ColorIgraphPlot(bm130t,seed_for_plotting=123)
+ColorIgraphPlot(bm130f,seed_for_plotting=123)
+ColorIgraphPlot(bm130r,seed_for_plotting=123)
+
+# We will also save these into the working directory for comparison
+
+png("bm130t.png")
+ColorIgraphPlot(bm130t,seed_for_plotting=123)
+dev.off()
+
+png("bm130f.png")
+ColorIgraphPlot(bm130f,seed_for_plotting=123)
+dev.off()
+
+png("bm130r.png")
+ColorIgraphPlot(bm130r,seed_for_plotting=123)
+dev.off()
+
+# We can interrogate Ball 16 where the model is overpredicting by around 4% using code from Session 3 Part B
+# First we add a column to our dty data frame to include the point number. This is simply a sequence from 1 to the number of rows
+
+dty$pt<-seq(1:nrow(dty))
+
+# Use the points_to_balls function to bring out a list of points in each ball (This is a user generated function currently)
+
+points_to_balls<-function(l){
+  a001<-length(l$landmarks)
+  a1<-matrix(0,nrow=a001,ncol=2)
+  a1<-as.data.frame(a1)
+  names(a1)<-c("pt","ball")
+  for(i in 1:a001){
+    a<-as.data.frame(l$points_covered_by_landmarks[i])
+    names(a)<-"pt"
+    a$ball<-i
+    a1<-rbind.data.frame(a1,a)
+   }
+  a1<-a1[2:nrow(a1),]
+  return(a1)
+}
+
+
+bmp1<-points_to_balls(bm130r)
+
+# Convert to data frame and name columns
+
+bmp1<-as.data.frame(bmp1)
+names(bmp1)<-c("pt","ball")
+
+# We can then merge this with our data
+
+dtz<-merge(dty,bmp1,by="pt")
+
+# Subset to focus on Ball 16
+
+dtz16<-subset(dtz,dtz$ball==16)
+
+# Finally view the data
+
+dtz16
