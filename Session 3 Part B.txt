@@ -1,0 +1,201 @@
+#################################################
+# This file provides code for Session 3	Part B	#
+#################################################
+
+# It is assumed that you have run Session 3 Part A
+# However, if you did not run Session 3 Part A then you can delete the # at the start of these lines
+
+# # First read in the packages
+
+# library(dplyr)
+# library(BallMapper)
+# Set working directory
+# setwd("D://oraf/") # This needs changing to your path either through code or via the File -> Change Dir... menu
+# Read in larger dataset
+# dtx<-read.table("region1.csv",sep=",",header=TRUE)
+# Select a subset of variables for the analysis
+# dty<-cbind(dtx[,1:2],dtx$QualLevel4,dtx$Deprivation0,dtx$Accommodation,dtx$Married,dtx$HealthVeryGood,dtx$OwnedMortgage)
+# Name the variables for reference
+# names(dty)<-c("geog","geogcode","QualLevel4","Deprivation0","Accommodation","Married","HealthVeryGood","OwnedMortgage")
+# dty$QL4<-as.numeric(dty$QualLevel4>33) # Areas where more than 1/3rd have Degrees
+
+######################
+# Variable Selection #
+######################
+
+# From part A we have created two outcomes, QualLevel4 and the dummy QL4
+# From part A we have chosen 5 characteristics as our axes, Deprivation0, Accommodation, Married, HealthVeryGood and OwnedMortgage
+# Our data is in dty
+
+# Split out outcomes. Note that BallMapper requires each element to be in a data frame
+
+y1<-as.data.frame(dty$QualLevel4)
+y2<-as.data.frame(dty$QL4)
+
+# Split out the characteristics
+
+x1<-as.data.frame(dty[,4:8])
+
+# Recall that we are going to normalise these variables because of the different ranges of values  
+# We use a function from the BallMapper package (American spelling)
+
+x2<-normalize_to_min_0_max_1(x1)
+
+#########################
+# First BallMapper Plot	#
+#########################
+
+# Let us produce a plot coloured by the percentage of residents with the highest level of qualifications
+
+bm1<-BallMapper(x2,y1,0.3) # We are using the normalised characteristics, level as output and a radius of 0.3 here
+
+# To view our plot we use
+
+ColorIgraphPlot(bm1,seed_for_plotting=123)
+
+# We can check the role of radius by creating some more BallMapper graphs
+
+bm125<-BallMapper(x2,y1,0.25)
+bm130<-BallMapper(x2,y1,0.30)
+bm135<-BallMapper(x2,y1,0.35)
+bm140<-BallMapper(x2,y1,0.40)
+bm145<-BallMapper(x2,y1,0.45)
+bm150<-BallMapper(x2,y1,0.50)
+
+# With R you can easily navigate between lines using the up and down arrows, so we will paste in all of the plots and then you can scroll between them by moving up and down and pressing ENTER
+
+ColorIgraphPlot(bm125,seed_for_plotting=123)
+ColorIgraphPlot(bm130,seed_for_plotting=123)
+ColorIgraphPlot(bm135,seed_for_plotting=123)
+ColorIgraphPlot(bm140,seed_for_plotting=123)
+ColorIgraphPlot(bm145,seed_for_plotting=123)
+ColorIgraphPlot(bm150,seed_for_plotting=123)
+
+# To save a plot we use the png() command from earlier
+
+png("Level430.png")
+ColorIgraphPlot(bm130,seed_for_plotting=123)
+dev.off()
+
+###############################
+# Changing Colouring Variable #
+###############################
+
+# We will now change the colouring variable for our plots to the proportion of regions with a QualLevel4 above 33%
+
+bm225<-BallMapper(x2,y2,0.25)
+bm230<-BallMapper(x2,y2,0.30)
+bm235<-BallMapper(x2,y2,0.35)
+bm240<-BallMapper(x2,y2,0.40)
+bm245<-BallMapper(x2,y2,0.45)
+bm250<-BallMapper(x2,y2,0.50)
+
+# With R you can easily navigate between lines using the up and down arrows, so we will paste in all of the plots and then you can scroll between them by moving up and down and pressing ENTER
+
+ColorIgraphPlot(bm225,seed_for_plotting=123)
+ColorIgraphPlot(bm230,seed_for_plotting=123)
+ColorIgraphPlot(bm235,seed_for_plotting=123)
+ColorIgraphPlot(bm240,seed_for_plotting=123)
+ColorIgraphPlot(bm245,seed_for_plotting=123)
+ColorIgraphPlot(bm250,seed_for_plotting=123)
+
+# To save a plot we use the png() command from earlier
+
+png("Proportion430.png")
+ColorIgraphPlot(bm230,seed_for_plotting=123)
+dev.off()
+
+#########################
+# Axis Variables	#
+#########################
+
+# A feature of BallMapper plots is that they are abstract. To see our axis variables we need to colour according to the characteristic values. 
+# Note that for this we will use the x1 variables and not the normalised versions seen in x2
+
+colorByAllVariables(bm130,x1,"bm1axis")
+
+#########################
+# Linking to Data	#
+#########################
+
+# First we add a column to our dty data frame to include the point number. This is simply a sequence from 1 to the number of rows
+
+dty$pt<-seq(1:nrow(dty))
+
+# Use the points_to_balls function to bring out a list of points in each ball (This is a user generated function currently)
+
+points_to_balls<-function(l){
+  a001<-length(l$landmarks)
+  a1<-matrix(0,nrow=a001,ncol=2)
+  a1<-as.data.frame(a1)
+  names(a1)<-c("pt","ball")
+  for(i in 1:a001){
+    a<-as.data.frame(l$points_covered_by_landmarks[i])
+    names(a)<-"pt"
+    a$ball<-i
+    a1<-rbind.data.frame(a1,a)
+   }
+  a1<-a1[2:nrow(a1),]
+  return(a1)
+}
+
+
+bmp1<-points_to_balls(bm130)
+
+# Convert to data frame and name columns
+
+bmp1<-as.data.frame(bmp1)
+names(bmp1)<-c("pt","ball")
+
+# We can then merge this with our data
+
+dtz<-merge(dty,bmp1,by="pt")
+
+# The full list is too long to view so let us first save it as a .csv file
+
+write.table(dtz,"Ballmembers130.csv",sep=",",row.names=FALSE)
+
+#################################
+# Consider individual balls	#
+#################################
+
+# To see a specific ball we can use the subset function
+
+ball17<-subset(dtz,dtz$ball==17) # Note the use of the double = sign
+
+# To see the names of the regions we may type
+
+ball17$geog
+
+# Let us also look at ball 19 
+
+ball19<-subset(dtz,dtz$ball==19) # Note the use of the double = sign
+
+# To see the names of the regions we may type
+
+ball19$geog
+
+# To compare these two groups visually we may type
+
+ball17
+ball19
+
+# This will show you the details for the LAD's which are in each ball
+
+# Finally let us look at a ball where the Qualification Level 4 percentage is low, ball 21
+
+ball21<-subset(dtz,dtz$ball==21) # Note the use of the double = sign
+
+# To see the names of the regions we may type
+
+ball21$geog
+
+# Again to see the full details we can just type the name of the object
+
+ball21
+
+#####################################################################################################
+# This is the end of the formal code for this session but you may continue to interpret the graphs  #
+# There are other interesting questions, such as what creates the difference between balls 15 and 4 #
+# which are connected but have a very different colouration. This is left as an exercise	    #
+#####################################################################################################

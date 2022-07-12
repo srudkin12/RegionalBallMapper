@@ -1,0 +1,221 @@
+#################################################
+# This file provides code for Session 3	Part A	#
+#################################################
+
+# If you are using R for the first time, or running on Google Colab, you will need to install the packages with the following lines
+
+install.packages("dplyr")
+install.packages("BallMapper")
+
+# Note that R will ask you to select a server, you can select any but the "Cloud" server works well. Secondly you may get a prompt about compiling packages, indicate "Yes" if that happens
+
+# First read in the packages
+
+library(dplyr)
+library(BallMapper)
+
+# Set working directory
+
+setwd("D://oraf/") # This needs changing to your path either through code or via the File -> Change Dir... menu
+
+# Read in larger dataset
+
+dtx<-read.table("region1.csv",sep=",",header=TRUE)
+
+# Let us first view the head of this data
+
+head(dtx)
+
+# See the correlation
+
+cor(dtx[,3:ncol(dtx)])
+
+# Select a subset of variables for the analysis
+
+dty<-cbind(dtx[,1:2],dtx$QualLevel4,dtx$Deprivation0,dtx$Accommodation,dtx$Married,dtx$HealthVeryGood,dtx$OwnedMortgage)
+
+# Name the variables for reference
+
+names(dty)<-c("geog","geogcode","QualLevel4","Deprivation0","Accommodation","Married","HealthVeryGood","OwnedMortgage")
+
+dty$QL4<-as.numeric(dty$QualLevel4>33) # Areas where more than 1/3rd have Degrees
+
+# Create summary statistics with a user defined function
+
+
+sstatsmat<-function(characteristics,decp){
+ if(missing(decp)) decp <- 2
+ a001<-ncol(characteristics)
+ sstats<-matrix(0,nrow=a001,ncol=5)
+ for(i in 1:a001){
+  j<-i
+  sstats[i,1]<-names(characteristics)[j]
+  sstats[i,2]<-round(mean(characteristics[,j]),decp)
+  sstats[i,3]<-round(sd(characteristics[,j]),decp)
+  sstats[i,4]<-round(min(characteristics[,j]),decp)
+  sstats[i,5]<-round(max(characteristics[,j]),decp)
+ }
+ return(sstats)
+}
+
+s001<-sstatsmat(dty[,3:8]) # Creates an object with the summary statistics
+
+s001<-as.data.frame(s001) # Convert to data frame
+
+names(s001)<-c("Variable","Mean","s.d.","Min","Max")
+
+write.table(s001,"summarystats.csv",sep=",",row.names=FALSE)
+
+# View the summary statistics by writing
+
+s001
+
+# We notice that Accommodation is on a different scale and so will normalise to [0,1] later.
+# It is also clear that the minimum percentage for any characteristics is 0 and the maximum is 60 (QualLevel4 goes to 70 but is the outcome variable and not one of the characteristic variables)
+
+# Check the correlation on these variables (Question 2)
+
+c001<-cor(dty[,3:8])
+c001
+
+# Write this correlation matrix to a csv file
+
+write.table(c001,"correlations.csv",sep=",",row.names=FALSE)
+
+# There are no correlations that will cause problems for the regression
+
+#########################
+# A Basic Visualisation	#
+#########################
+
+# Here we draw a simple scatterplot with two variables 
+
+plot(dty$Deprivation0,dty$Accommodation,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Deprivation 0",ylab="Accommodation")
+
+#################################
+# Visualisation Preliminary	#
+#################################
+
+# In order to visualise this data let us subset the data into those regions with more than 33% with Level 4 qualifications
+
+dty0<-subset(dty,dty$QL4==0)
+dty1<-subset(dty,dty$QL4==1)
+
+#########################
+# Visualisation 1	#
+#########################
+
+# Create the first plot
+
+plot(dty0$Deprivation0,dty0$Accommodation,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Deprivation 0",ylab="Accommodation") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$Accommodation,pch=16,col="blue")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("black","blue"))
+
+# To output a file as a .png we may write an extra line at the top and bottom. The 60 is because we fixed the axis upper limit to 60
+
+png("Deprivation0Accommodation60.png")
+plot(dty0$Deprivation0,dty0$Accommodation,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Deprivation 0",ylab="Accommodation") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$Accommodation,pch=16,col="blue")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("black","blue"))
+dev.off()
+
+# We can make a version where we do not specify the axis range to help view these two variables
+
+plot(dty$Deprivation0,dty$Accommodation,pch=16,xlab="Deprivation 0",ylab="Accommodation") # Note the limits are set based on the full data dty and not either dty1 or dty2
+points(dty1$Deprivation0,dty1$Accommodation,pch=16,col="blue")
+points(dty0$Deprivation0,dty0$Accommodation,pch=16,col="red")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("red","blue"))
+
+# To output a file as a .png we may write an extra line at the top and bottom
+
+png("Deprivation0Accommodation.png")
+plot(dty$Deprivation0,dty$Accommodation,pch=16,xlab="Deprivation 0",ylab="Accommodation") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$Accommodation,pch=16,col="blue")
+points(dty0$Deprivation0,dty0$Accommodation,pch=16,col="red")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("red","blue"))
+dev.off()
+
+#########################
+# Visualisation 2	#
+#########################
+
+# This time the pair of variables is Married and HealthVeryGood
+
+# Create the first plot
+
+plot(dty0$Married,dty0$HealthVeryGood,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Married",ylab="Health Very Good") # Note the limits are set based on summary statistics
+points(dty1$Married,dty1$HealthVeryGood,pch=16,col="blue")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("black","blue"))
+
+# To output a file as a .png we may again write an extra line at the top and bottom. The 60 is because we fixed the axis upper limit to 60
+
+png("MarriedHealthVeryGood60.png")
+plot(dty0$Married,dty0$HealthVeryGood,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Married",ylab="Health Very Good") # Note the limits are set based on summary statistics
+points(dty1$Married,dty1$HealthVeryGood,pch=16,col="blue")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("black","blue"))
+dev.off()
+
+# Again we can make a version where we do not specify the axis range to help view these two variables
+
+plot(dty$Married,dty$HealthVeryGood,pch=16,xlab="Married",ylab="Health Very Good") # Note the limits are set based on summary statistics
+points(dty1$Married,dty1$HealthVeryGood,pch=16,col="blue")
+points(dty0$Married,dty0$HealthVeryGood,pch=16,col="red")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("red","blue"))
+
+# Once more to output a file as a .png we may write an extra line at the top and bottom
+
+png("MarriedHealthVeryGood.png")
+plot(dty$Married,dty$HealthVeryGood,pch=16,xlab="Married",ylab="Health Very Good") # Note the limits are set based on summary statistics
+points(dty1$Married,dty1$HealthVeryGood,pch=16,col="blue")
+points(dty0$Married,dty0$HealthVeryGood,pch=16,col="red")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("red","blue"))
+dev.off()
+
+#########################
+# Visualisation 3	#
+#########################
+
+# This time the pair of variables is Deprivation0 and OwnedMortgage
+
+# Create the first plot
+
+plot(dty0$Deprivation0,dty0$OwnedMortgage,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Deprivation 0",ylab="Owned Mortgage") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$OwnedMortgage,pch=16,col="blue")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("black","blue"))
+
+# To output a file as a .png we may again write an extra line at the top and bottom
+
+png("Deprivation0Accommodation60.png")
+plot(dty0$Deprivation0,dty0$OwnedMortgage,pch=16,xlim=c(0,60),ylim=c(0,60),xlab="Deprivation 0",ylab="Owned Mortgage") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$OwnedMortgage,pch=16,col="blue")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("black","blue"))
+dev.off()
+
+# Again we can make a version where we do not specify the axis range to help view these two variables
+
+plot(dty$Deprivation0,dty$OwnedMortgage,pch=16,xlab="Deprivation 0",ylab="Owned Mortgage") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$OwnedMortgage,pch=16,col="blue")
+points(dty0$Deprivation0,dty0$OwnedMortgage,pch=16,col="red")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("red","blue"))
+
+# Once more to output a file as a .png we may write an extra line at the top and bottom
+
+png("Deprivation0Accommodation.png")
+plot(dty$Deprivation0,dty$OwnedMortgage,pch=16,xlab="Deprivation 0",ylab="Owned Mortgage") # Note the limits are set based on summary statistics
+points(dty1$Deprivation0,dty1$OwnedMortgage,pch=16,col="blue")
+points(dty0$Deprivation0,dty0$OwnedMortgage,pch=16,col="red")
+leg.text=c("Below 33%","Above 33%")
+legend("bottomleft",leg.text,pch=16,col=c("red","blue"))
+dev.off()
+
