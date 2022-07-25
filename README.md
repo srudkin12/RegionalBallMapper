@@ -13,4 +13,4 @@ Session 4 is designed as an optional session and gives participants the chance t
 
 After Sessions 3 and 4 the slides used in the discussion will be made available. 
 
-Relevant elements of the presentations from all sessions will be recorded and made available in the weeks following the workshop. Links to these sessions will be added to the GitHub site in due course.
+Relevant elements of the presentations from all sessions will be recorded and made available in the weeks following the workshop. The video of the workshop is available via: https://video.manchester.ac.uk/faculties/dcfc56d26eb49a4a9b05f8883bae189f/9160c512-d713-41fb-a8a5-99e014ac9d96/
